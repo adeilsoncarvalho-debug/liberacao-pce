@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Liberação Rápida — Expedição</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --verde:     #1a7a4a;
+    --verde-lt:  #e8f5ee;
+    --cinza-bg:  #f2f3f5;
+    --cinza-bd:  #d0d4da;
+    --texto:     #1c2128;
+    --sub:       #5a6372;
+    --branco:    #ffffff;
+    --amarelo:   #f5a623;
+    --vermelho:  #d94040;
+    --azul:      #1a5fa8;
+  }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--cinza-bg);
+    color: var(--texto);
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--verde);
+    color: var(--branco);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header svg { flex-shrink: 0; }
+  header h1 { font-size: 1.05rem; font-weight: 700; letter-spacing: .3px; }
+  header span { font-size: .8rem; opacity: .8; display: block; }
+
+  /* ── STEPS ── */
+  .steps {
+    display: flex;
+    background: var(--branco);
+    border-bottom: 1px solid var(--cinza-bd);
+  }
+  .step {
+    flex: 1;
+    padding: 10px 6px;
+    text-align: center;
+    font-size: .72rem;
+    color: var(--sub);
+    border-bottom: 3px solid transparent;
+    transition: .2s;
+  }
+  .step.active  { color: var(--verde); border-color: var(--verde); font-weight: 700; }
+  .step.done    { color: var(--verde); }
+  .step-num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--cinza-bd);
+    color: var(--sub);
+    font-size: .7rem; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+    margin-bottom: 4px;
+  }
+  .step.active .step-num  { background: var(--verde); color: #fff; }
+  .step.done   .step-num  { background: var(--verde); color: #fff; }
+
+  /* ── PAGES ── */
+  .page { display: none; padding: 16px; max-width: 600px; margin: 0 auto; }
+  .page.active { display: block; }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--branco);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 14px;
+    border: 1px solid var(--cinza-bd);
+  }
+  .card-title {
+    font-size: .8rem;
+    font-weight: 700;
+    color: var(--sub);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin-bottom: 14px;
+  }
+
+  /* ── CAPTURA ── */
+  .capture-zone {
+    border: 2px dashed var(--cinza-bd);
+    border-radius: 10px;
+    padding: 32px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .capture-zone:hover { border-color: var(--verde); background: var(--verde-lt); }
+  .capture-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .capture-zone svg { margin-bottom: 10px; }
+  .capture-zone p { font-size: .9rem; color: var(--sub); }
+  .capture-zone strong { color: var(--verde); font-size: 1rem; display: block; margin-bottom: 4px; }
+
+  .preview-img {
+    width: 100%; border-radius: 8px;
+    max-height: 240px; object-fit: cover;
+    margin-top: 12px;
+    display: none;
+  }
+
+  /* ── BOTÕES ── */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 12px 22px;
+    border-radius: 8px;
+    font-size: .9rem; font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: opacity .15s, transform .1s;
+    width: 100%;
+  }
+  .btn:active { transform: scale(.98); }
+  .btn-verde  { background: var(--verde); color: #fff; }
+  .btn-verde:hover { opacity: .9; }
+  .btn-outline { background: var(--branco); color: var(--verde); border: 2px solid var(--verde); }
+  .btn-azul   { background: var(--azul);  color: #fff; }
+  .btn-cinza  { background: var(--cinza-bd); color: var(--sub); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  .btn-row { display: flex; gap: 10px; margin-top: 12px; }
+  .btn-row .btn { flex: 1; }
+
+  /* ── LOADING ── */
+  .loading-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.55);
+    z-index: 999;
+    align-items: center; justify-content: center;
+    flex-direction: column; gap: 14px;
+    color: #fff; text-align: center;
+  }
+  .loading-overlay.show { display: flex; }
+  .spinner {
+    width: 48px; height: 48px;
+    border: 4px solid rgba(255,255,255,.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-overlay p { font-size: .95rem; opacity: .9; }
+
+  /* ── CAMPOS ── */
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-size: .75rem; font-weight: 700;
+    color: var(--sub);
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    margin-bottom: 6px;
+  }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid var(--cinza-bd);
+    border-radius: 7px;
+    font-size: .95rem;
+    color: var(--texto);
+    background: var(--branco);
+    transition: border-color .2s;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: none;
+    border-color: var(--verde);
+  }
+  .field input.ia-preenchido {
+    border-color: var(--verde);
+    background: var(--verde-lt);
+  }
+
+  .badge-ia {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: .65rem; font-weight: 700;
+    background: var(--verde-lt); color: var(--verde);
+    border-radius: 4px; padding: 2px 6px;
+    margin-left: 6px;
+  }
+
+  /* ── CONFIANÇA ── */
+  .confianca-bar {
+    height: 4px; border-radius: 2px;
+    background: var(--cinza-bd);
+    margin-top: 5px;
+    overflow: hidden;
+  }
+  .confianca-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--verde);
+    transition: width .4s ease;
+  }
+
+  /* ── RELATÓRIO ── */
+  .relatorio {
+    background: var(--branco);
+    border: 1px solid var(--cinza-bd);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .relatorio-header {
+    background: var(--verde);
+    color: #fff;
+    padding: 14px 18px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .relatorio-header h2 { font-size: .95rem; }
+  .relatorio-header small { opacity: .8; font-size: .75rem; }
+  .relatorio-body { padding: 18px; }
+
+  .rel-campo {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--cinza-bg);
+    font-size: .9rem;
+    gap: 12px;
+  }
+  .rel-campo:last-child { border-bottom: none; }
+  .rel-label { color: var(--sub); font-size: .78rem; font-weight: 600; flex-shrink: 0; }
+  .rel-valor { font-weight: 700; text-align: right; }
+
+  .status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: .75rem;
+    font-weight: 700;
+  }
+  .badge-ok     { background: var(--verde-lt); color: var(--verde); }
+  .badge-alerta { background: #fff7e6; color: var(--amarelo); }
+
+  /* ── THUMB IA ── */
+  .ia-tag {
+    display: flex; align-items: center; gap: 6px;
+    font-size: .78rem; color: var(--verde);
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .ia-tag::before { content: ''; display: block; width: 8px; height: 8px; border-radius: 50%; background: var(--verde); animation: pulse 1.4s ease infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* ── AVISO ── */
+  .aviso {
+    border-radius: 8px; padding: 12px 14px;
+    font-size: .82rem; display: flex; gap: 10px; align-items: flex-start;
+    margin-bottom: 12px;
+  }
+  .aviso-amarelo { background: #fff7e6; color: #7a4f00; border-left: 3px solid var(--amarelo); }
+  .aviso-verde   { background: var(--verde-lt); color: #0a3d21; border-left: 3px solid var(--verde); }
+
+  /* ── HISTÓRICO ── */
+  .historico-item {
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: var(--cinza-bg);
+    margin-bottom: 10px;
+    display: flex; justify-content: space-between; align-items: center;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .historico-item:hover { background: var(--verde-lt); }
+  .hist-placa { font-weight: 800; font-size: 1rem; letter-spacing: 1px; }
+  .hist-info  { font-size: .78rem; color: var(--sub); margin-top: 2px; }
+  .hist-hora  { font-size: .75rem; color: var(--sub); }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--sub); }
+  .empty-state svg { opacity: .3; margin-bottom: 12px; }
+  .empty-state p { font-size: .9rem; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.5);
+    z-index: 100;
+    align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--branco);
+    border-radius: 16px 16px 0 0;
+    padding: 24px;
+    width: 100%; max-width: 600px;
+    max-height: 90vh; overflow-y: auto;
+    animation: slideUp .25s ease;
+  }
+  @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+  .modal-title { font-size: 1rem; font-weight: 800; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <p id="loadingMsg">Analisando imagem com IA…</p>
+</div>
+
+<!-- Modal relatório histórico -->
+<div class="modal-overlay" id="modalHist">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">Registro</div>
+    <div id="modalBody"></div>
+    <button class="btn btn-cinza" onclick="fecharModal()" style="margin-top:14px">Fechar</button>
+  </div>
+</div>
+
+<!-- Header -->
+<header>
+  <svg width="28" height="28" fill="none" viewBox="0 0 24 24">
+    <rect x="2" y="5" width="20" height="14" rx="3" fill="rgba(255,255,255,.25)"/>
+    <circle cx="6" cy="17" r="2.5" fill="#fff"/>
+    <circle cx="18" cy="17" r="2.5" fill="#fff"/>
+    <rect x="8" y="8" width="8" height="5" rx="1.5" fill="#fff"/>
+  </svg>
+  <div>
+    <h1>Liberação de Veículos</h1>
+    <span>Expedição — captura por foto</span>
+  </div>
+</header>
+
+<!-- Steps -->
+<div class="steps">
+  <div class="step active" id="st1">
+    <div class="step-num">1</div><br>Foto
+  </div>
+  <div class="step" id="st2">
+    <div class="step-num">2</div><br>Validar
+  </div>
+  <div class="step" id="st3">
+    <div class="step-num">3</div><br>Liberar
+  </div>
+  <div class="step" id="st4">
+    <div class="step-num">4</div><br>Histórico
+  </div>
+</div>
+
+<!-- PAGE 1: CAPTURA -->
+<div class="page active" id="page1">
+  <div class="card">
+    <div class="card-title">Capturar documento / placa</div>
+    <div class="capture-zone" id="captureZone">
+      <input type="file" accept="image/*" capture="environment" id="fileInput" onchange="processarImagem(event)">
+      <svg width="48" height="48" fill="none" viewBox="0 0 24 24">
+        <circle cx="12" cy="13" r="4" stroke="#1a7a4a" stroke-width="1.8"/>
+        <path d="M2 9c0-1.1.9-2 2-2h1.5l1.2-2h6.6l1.2 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9z" stroke="#1a7a4a" stroke-width="1.8"/>
+      </svg>
+      <strong>Tirar foto ou selecionar imagem</strong>
+      <p>Cupom fiscal, placa, canhoto ou qualquer documento do veículo</p>
+    </div>
+    <img id="previewImg" class="preview-img" alt="Preview">
+  </div>
+
+  <div class="aviso aviso-amarelo">
+    <span>💡</span>
+    <span>Fotografe o documento com a placa visível. A IA vai extrair automaticamente os dados.</span>
+  </div>
+</div>
+
+<!-- PAGE 2: VALIDAÇÃO -->
+<div class="page" id="page2">
+  <div class="card">
+    <div class="ia-tag">IA extraiu os dados — revise se necessário</div>
+    <div class="card-title">Dados extraídos <span class="badge-ia">✦ IA</span></div>
+
+    <div class="field">
+      <label>Placa do veículo</label>
+      <input type="text" id="campo_placa" placeholder="ABC-1234" oninput="this.value=this.value.toUpperCase()">
+      <div class="confianca-bar"><div class="confianca-fill" id="conf_placa" style="width:0%"></div></div>
+    </div>
+
+    <div class="field">
+      <label>Transportadora</label>
+      <input type="text" id="campo_transportadora" placeholder="Nome da transportadora">
+      <div class="confianca-bar"><div class="confianca-fill" id="conf_transp" style="width:0%"></div></div>
+    </div>
+
+    <div class="field">
+      <label>Cliente / Destinatário</label>
+      <input type="text" id="campo_cliente" placeholder="Razão social ou nome">
+      <div class="confianca-bar"><div class="confianca-fill" id="conf_cliente" style="width:0%"></div></div>
+    </div>
+
+    <div class="field">
+      <label>Nota Fiscal</label>
+      <input type="text" id="campo_nf" placeholder="NF-e 000000">
+      <div class="confianca-bar"><div class="confianca-fill" id="conf_nf" style="width:0%"></div></div>
+    </div>
+
+    <div class="field">
+      <label>Doca</label>
+      <select id="campo_doca">
+        <option value="">— Selecionar doca —</option>
+        <option>Doca 01</option><option>Doca 02</option><option>Doca 03</option>
+        <option>Doca 04</option><option>Doca 05</option><option>Doca 06</option>
+        <option>Doca 07</option><option>Doca 08</option><option>Doca 09</option>
+        <option>Doca 10</option><option>Doca 11</option><option>Doca 12</option>
+        <option>Doca 13</option><option>Doca 14</option><option>Doca 15</option>
+        <option>Doca 16</option><option>Doca 17</option><option>Doca 18</option>
+        <option>Doca 19</option><option>Doca 20</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Observação (opcional)</label>
+      <input type="text" id="campo_obs" placeholder="Ex: carga parcial, lacre rompido…">
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-outline" onclick="voltarCaptura()">← Refazer foto</button>
+    <button class="btn btn-verde" onclick="confirmarLiberacao()">Confirmar e liberar →</button>
+  </div>
+</div>
+
+<!-- PAGE 3: LIBERAÇÃO CONFIRMADA -->
+<div class="page" id="page3">
+  <div class="aviso aviso-verde" style="margin-bottom:14px">
+    <span>✅</span>
+    <span><strong>Veículo liberado com sucesso!</strong> Registro salvo no histórico.</span>
+  </div>
+
+  <div class="relatorio" id="relatorioFinal"></div>
+
+  <div class="btn-row" style="margin-top:14px">
+    <button class="btn btn-outline" onclick="novaLiberacao()">Nova liberação</button>
+    <button class="btn btn-azul" onclick="exportarCSV()">⬇ Exportar CSV</button>
+  </div>
+</div>
+
+<!-- PAGE 4: HISTÓRICO -->
+<div class="page" id="page4">
+  <div class="card" style="padding:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="card-title" style="margin:0">Registros do dia</div>
+      <button class="btn btn-azul" style="width:auto;padding:7px 14px;font-size:.8rem" onclick="exportarCSV()">⬇ CSV</button>
+    </div>
+    <div id="listaHistorico">
+      <div class="empty-state">
+        <svg width="48" height="48" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3" stroke="#aaa" stroke-width="1.5"/><path d="M7 8h10M7 12h7M7 16h5" stroke="#aaa" stroke-width="1.5"/></svg>
+        <p>Nenhuma liberação registrada ainda</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Nav bottom -->
+<div style="position:fixed;bottom:0;left:0;right:0;background:var(--branco);border-top:1px solid var(--cinza-bd);display:flex;z-index:50">
+  <button onclick="irPara(1)" style="flex:1;padding:12px 4px;background:none;border:none;font-size:.7rem;color:var(--sub);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px">
+    <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="3" stroke="currentColor" stroke-width="1.8"/><circle cx="6" cy="17" r="2" fill="currentColor" opacity=".5"/><circle cx="18" cy="17" r="2" fill="currentColor" opacity=".5"/></svg>
+    Liberar
+  </button>
+  <button onclick="irPara(4)" style="flex:1;padding:12px 4px;background:none;border:none;font-size:.7rem;color:var(--sub);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px">
+    <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M7 8h10M7 12h7M7 16h5" stroke="currentColor" stroke-width="1.8"/></svg>
+    Histórico
+  </button>
+</div>
+
+<div style="height:70px"></div>
+
+<script>
+  let historico = JSON.parse(localStorage.getItem('lib_historico') || '[]');
+  let dadosExtraidos = {};
+
+  /* ── Navegação ── */
+  function irPara(n) {
+    document.querySelectorAll('.page').forEach((p,i) => p.classList.toggle('active', i+1===n));
+    document.querySelectorAll('.step').forEach((s,i) => {
+      s.classList.toggle('active', i+1===n);
+      s.classList.toggle('done', i+1<n);
+    });
+    if (n===4) renderHistorico();
+  }
+
+  /* ── Processar imagem ── */
+  async function processarImagem(evt) {
+    const file = evt.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      document.getElementById('previewImg').src = e.target.result;
+      document.getElementById('previewImg').style.display = 'block';
+
+      setLoading(true, 'Analisando imagem com IA…');
+      try {
+        const base64 = e.target.result.split(',')[1];
+        const mediaType = file.type;
+        const dados = await extrairDadosIA(base64, mediaType);
+        preencherCampos(dados);
+        irPara(2);
+      } catch(err) {
+        alert('Erro ao analisar imagem. Você pode preencher os dados manualmente.');
+        irPara(2);
+      } finally {
+        setLoading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  /* ── Chamar IA ── */
+  async function extrairDadosIA(base64, mediaType) {
+    const prompt = `Analise esta imagem de um documento de transporte/expedição logística.
+
+Extraia APENAS as seguintes informações, respondendo SOMENTE em JSON puro sem markdown:
+
+{
+  "placa": "placa do veículo (formato ABC-1234 ou Mercosul ABCD123, deixe vazio se não encontrar)",
+  "transportadora": "nome da transportadora ou empresa de transporte (deixe vazio se não encontrar)",
+  "cliente": "nome do cliente ou destinatário (razão social) (deixe vazio se não encontrar)",
+  "nf": "número da nota fiscal ou NF-e (apenas o número) (deixe vazio se não encontrar)",
+  "confianca_placa": 0 a 100 (quanto confia na leitura da placa),
+  "confianca_transportadora": 0 a 100,
+  "confianca_cliente": 0 a 100,
+  "confianca_nf": 0 a 100
+}
+
+Se a imagem não for de um documento de transporte, preencha os campos como vazio mas tente extrair o que for possível.
+Retorne APENAS o JSON, sem texto adicional.`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [{
+            type: 'image',
+            source: { type: 'base64', media_type: mediaType, data: base64 }
+          }, {
+            type: 'text',
+            text: prompt
+          }]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    const texto = data.content.map(b => b.text || '').join('');
+    const clean = texto.replace(/```json|```/g, '').trim();
+    return JSON.parse(clean);
+  }
+
+  /* ── Preencher campos ── */
+  function preencherCampos(dados) {
+    dadosExtraidos = dados;
+
+    const campos = ['placa','transportadora','cliente','nf'];
+    const keys   = ['placa','transportadora','cliente','nf'];
+
+    campos.forEach((c,i) => {
+      const input = document.getElementById('campo_'+c);
+      const val   = dados[keys[i]] || '';
+      input.value = val;
+      if (val) input.classList.add('ia-preenchido');
+      else      input.classList.remove('ia-preenchido');
+
+      const conf = dados['confianca_'+keys[i]] || 0;
+      document.getElementById('conf_'+['placa','transp','cliente','nf'][i]).style.width = conf+'%';
+    });
+  }
+
+  /* ── Confirmar liberação ── */
+  function confirmarLiberacao() {
+    const placa = document.getElementById('campo_placa').value.trim();
+    if (!placa) { alert('Informe a placa do veículo.'); return; }
+
+    const agora = new Date();
+    const reg = {
+      id: Date.now(),
+      placa:          document.getElementById('campo_placa').value.trim().toUpperCase(),
+      transportadora: document.getElementById('campo_transportadora').value.trim(),
+      cliente:        document.getElementById('campo_cliente').value.trim(),
+      nf:             document.getElementById('campo_nf').value.trim(),
+      doca:           document.getElementById('campo_doca').value,
+      obs:            document.getElementById('campo_obs').value.trim(),
+      hora:           agora.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}),
+      data:           agora.toLocaleDateString('pt-BR'),
+      timestamp:      agora.toISOString()
+    };
+
+    historico.unshift(reg);
+    localStorage.setItem('lib_historico', JSON.stringify(historico));
+
+    renderRelatorio(reg);
+    irPara(3);
+  }
+
+  /* ── Renderizar relatório ── */
+  function renderRelatorio(reg) {
+    const html = `
+      <div class="relatorio-header">
+        <div>
+          <h2>Liberação Registrada</h2>
+          <small>${reg.data} às ${reg.hora}</small>
+        </div>
+        <span class="status-badge badge-ok">✓ LIBERADO</span>
+      </div>
+      <div class="relatorio-body">
+        <div class="rel-campo">
+          <span class="rel-label">Placa</span>
+          <span class="rel-valor" style="font-size:1.1rem;letter-spacing:2px">${reg.placa}</span>
+        </div>
+        <div class="rel-campo">
+          <span class="rel-label">Transportadora</span>
+          <span class="rel-valor">${reg.transportadora || '—'}</span>
+        </div>
+        <div class="rel-campo">
+          <span class="rel-label">Cliente</span>
+          <span class="rel-valor">${reg.cliente || '—'}</span>
+        </div>
+        <div class="rel-campo">
+          <span class="rel-label">Nota Fiscal</span>
+          <span class="rel-valor">${reg.nf || '—'}</span>
+        </div>
+        <div class="rel-campo">
+          <span class="rel-label">Doca</span>
+          <span class="rel-valor">${reg.doca || '—'}</span>
+        </div>
+        ${reg.obs ? `<div class="rel-campo"><span class="rel-label">Obs</span><span class="rel-valor">${reg.obs}</span></div>` : ''}
+      </div>`;
+    document.getElementById('relatorioFinal').innerHTML = html;
+  }
+
+  /* ── Histórico ── */
+  function renderHistorico() {
+    const el = document.getElementById('listaHistorico');
+    if (!historico.length) {
+      el.innerHTML = `<div class="empty-state">
+        <svg width="48" height="48" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3" stroke="#aaa" stroke-width="1.5"/><path d="M7 8h10M7 12h7M7 16h5" stroke="#aaa" stroke-width="1.5"/></svg>
+        <p>Nenhuma liberação registrada ainda</p></div>`;
+      return;
+    }
+    el.innerHTML = historico.map(r => `
+      <div class="historico-item" onclick="verRegistro(${r.id})">
+        <div>
+          <div class="hist-placa">${r.placa}</div>
+          <div class="hist-info">${r.transportadora || 'Transp. não informada'} · ${r.cliente || 'Cliente não informado'}</div>
+          <div class="hist-info" style="margin-top:2px">NF: ${r.nf||'—'} · ${r.doca||'Doca não informada'}</div>
+        </div>
+        <div class="hist-hora">${r.hora}<br><span style="font-size:.68rem">${r.data}</span></div>
+      </div>`).join('');
+  }
+
+  function verRegistro(id) {
+    const r = historico.find(x => x.id===id);
+    if (!r) return;
+    document.getElementById('modalTitle').textContent = `Placa ${r.placa} — ${r.data}`;
+    document.getElementById('modalBody').innerHTML = `
+      <div class="relatorio-body" style="padding:0">
+        <div class="rel-campo"><span class="rel-label">Transportadora</span><span class="rel-valor">${r.transportadora||'—'}</span></div>
+        <div class="rel-campo"><span class="rel-label">Cliente</span><span class="rel-valor">${r.cliente||'—'}</span></div>
+        <div class="rel-campo"><span class="rel-label">Nota Fiscal</span><span class="rel-valor">${r.nf||'—'}</span></div>
+        <div class="rel-campo"><span class="rel-label">Doca</span><span class="rel-valor">${r.doca||'—'}</span></div>
+        <div class="rel-campo"><span class="rel-label">Hora</span><span class="rel-valor">${r.hora} de ${r.data}</span></div>
+        ${r.obs?`<div class="rel-campo"><span class="rel-label">Obs</span><span class="rel-valor">${r.obs}</span></div>`:''}
+      </div>`;
+    document.getElementById('modalHist').classList.add('show');
+  }
+
+  function fecharModal() {
+    document.getElementById('modalHist').classList.remove('show');
+  }
+
+  /* ── Exportar CSV ── */
+  function exportarCSV() {
+    if (!historico.length) { alert('Nenhum registro para exportar.'); return; }
+    const cols = ['Data','Hora','Placa','Transportadora','Cliente','NF','Doca','Observação'];
+    const linhas = historico.map(r =>
+      [r.data,r.hora,r.placa,r.transportadora,r.cliente,r.nf,r.doca,r.obs].map(v=>`"${(v||'').replace(/"/g,'""')}"`).join(',')
+    );
+    const csv = [cols.join(','), ...linhas].join('\n');
+    const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `liberacoes_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;
+    a.click();
+  }
+
+  function novaLiberacao() {
+    document.getElementById('fileInput').value = '';
+    document.getElementById('previewImg').style.display = 'none';
+    ['placa','transportadora','cliente','nf','obs'].forEach(c => {
+      const el = document.getElementById('campo_'+c);
+      el.value='';
+      el.classList.remove('ia-preenchido');
+    });
+    document.getElementById('campo_doca').value = '';
+    irPara(1);
+  }
+
+  function voltarCaptura() { irPara(1); }
+
+  /* ── Loading ── */
+  function setLoading(show, msg) {
+    document.getElementById('loading').classList.toggle('show', show);
+    if (msg) document.getElementById('loadingMsg').textContent = msg;
+  }
+</script>
+</body>
+</html>
